@@ -16,8 +16,18 @@ namespace Microsoft.AspNetCore.Razor.Evolution
 
         public DocumentIRNode Execute(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
         {
-            var walker = new DirectiveWalker();
-            walker.VisitDefault(irDocument);
+            var syntaxTree = codeDocument.GetSyntaxTree();
+            if (syntaxTree == null)
+            {
+                throw new InvalidOperationException(Resources.FormatFeatureDependencyMissing(
+                    typeof(DefaultDirectiveIRPass).Name,
+                    syntaxTree.GetType().Name,
+                    typeof(RazorCodeDocument).Name));
+            }
+
+            var designTime = syntaxTree.Options.DesignTimeMode;
+            var walker = new DirectiveWalker(designTime);
+            walker.VisitDocument(irDocument);
 
             return irDocument;
         }
@@ -25,6 +35,12 @@ namespace Microsoft.AspNetCore.Razor.Evolution
         private class DirectiveWalker : RazorIRNodeWalker
         {
             private ClassDeclarationIRNode _classNode;
+            private readonly bool _designTime;
+
+            public DirectiveWalker(bool designTime)
+            {
+                _designTime = designTime;
+            }
 
             public override void VisitClass(ClassDeclarationIRNode node)
             {
@@ -40,6 +56,8 @@ namespace Microsoft.AspNetCore.Razor.Evolution
             {
                 if (string.Equals(node.Name, CSharpCodeParser.FunctionsDirectiveDescriptor.Name, StringComparison.Ordinal))
                 {
+                    node.Parent.Children.Remove(node);
+
                     foreach (var child in node.Children.Except(node.Tokens))
                     {
                         child.Parent = _classNode;
@@ -48,12 +66,39 @@ namespace Microsoft.AspNetCore.Razor.Evolution
                 }
                 else if (string.Equals(node.Name, CSharpCodeParser.InheritsDirectiveDescriptor.Name, StringComparison.Ordinal))
                 {
+                    node.Parent.Children.Remove(node);
+
                     var token = node.Tokens.FirstOrDefault();
 
                     if (token != null)
                     {
                         _classNode.BaseType = token.Content;
                     }
+                }
+                else if (string.Equals(node.Name, CSharpCodeParser.SectionDirectiveDescriptor.Name, StringComparison.Ordinal))
+                {
+                    var sectionIndex = node.Parent.Children.IndexOf(node);
+                    node.Parent.Children.Remove(node);
+
+                    var defineSectionEndStatement = new CSharpStatementIRNode()
+                    {
+                        Content = "});",
+                    };
+                    node.Parent.Children.Insert(sectionIndex, defineSectionEndStatement);
+
+                    foreach (var child in node.Children.Except(node.Tokens).Reverse())
+                    {
+                        node.Parent.Children.Insert(sectionIndex, child);
+                    }
+
+                    var lambdaContent = _designTime ? "__razor_section_writer" : string.Empty;
+                    var sectionName = node.Tokens.FirstOrDefault()?.Content;
+                    var defineSectionStartStatement = new CSharpStatementIRNode()
+                    {
+                        Content = /* ORIGINAL: DefineSectionMethodName */ $"DefineSection(\"{sectionName}\", async ({lambdaContent}) => {{",
+                    };
+
+                    node.Parent.Children.Insert(sectionIndex, defineSectionStartStatement);
                 }
             }
         }
