@@ -2,11 +2,27 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Razor.Evolution.Legacy;
 
 namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
 {
-    public class RazorMethodDeclarationIRNode : MethodDeclarationIRNode
+    public class MethodDeclarationIRNode : RazorIRNode
     {
+        public override IList<RazorIRNode> Children { get; } = new List<RazorIRNode>();
+
+        public override RazorIRNode Parent { get; set; }
+
+        internal override MappingLocation SourceRange { get; set; }
+
+        public string AccessModifier { get; set; }
+
+        public IList<string> Modifiers { get; set; }
+
+        public string Name { get; set; }
+
+        public string ReturnType { get; set; }
+
         public override void Accept(RazorIRNodeVisitor visitor)
         {
             if (visitor == null)
@@ -14,7 +30,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
                 throw new ArgumentNullException(nameof(visitor));
             }
 
-            visitor.VisitRazorMethodDeclaration(this);
+            visitor.VisitMethodDeclaration(this);
         }
 
         public override TResult Accept<TResult>(RazorIRNodeVisitor<TResult> visitor)
@@ -24,7 +40,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
                 throw new ArgumentNullException(nameof(visitor));
             }
 
-            return visitor.VisitRazorMethodDeclaration(this);
+            return visitor.VisitMethodDeclaration(this);
         }
     }
 }
