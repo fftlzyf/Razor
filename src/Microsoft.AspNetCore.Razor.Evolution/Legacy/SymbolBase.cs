@@ -11,7 +11,6 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
     internal abstract class SymbolBase<TType> : ISymbol where TType : struct
     {
         protected SymbolBase(
-            SourceLocation start,
             string content,
             TType type,
             IReadOnlyList<RazorError> errors)
@@ -21,19 +20,45 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
                 throw new ArgumentNullException(nameof(content));
             }
 
-            Start = start;
             Content = content;
             Type = type;
             Errors = errors;
         }
 
-        public SourceLocation Start { get; private set; }
+        public Span Parent { get; set; }
+
+        public int Offset { get; set; }
 
         public IReadOnlyList<RazorError> Errors { get; }
 
         public string Content { get; }
 
         public TType Type { get; }
+
+        public SourceLocation Start
+        {
+            get
+            {
+                if (Parent == null)
+                {
+                    return SourceLocation.Undefined;
+                }
+
+                var tracker = new SourceLocationTracker(Parent.Start);
+                for (var i = 0; i < Parent.Symbols.Count; i++)
+                {
+                    var symbol = Parent.Symbols[i];
+                    if (object.ReferenceEquals(this, symbol))
+                    {
+                        break;
+                    }
+
+                    tracker.UpdateLocation(symbol.Content);
+                }
+
+                return tracker.CurrentLocation;
+            }
+        }
 
         public override bool Equals(object obj)
         {
@@ -47,26 +72,16 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         public override int GetHashCode()
         {
             // Hash code should include only immutable properties.
-            var hashCodeCombiner = HashCodeCombiner.Start();
-            hashCodeCombiner.Add(Content, StringComparer.Ordinal);
-            hashCodeCombiner.Add(Type);
+            var hash = HashCodeCombiner.Start();
+            hash.Add(Content, StringComparer.Ordinal);
+            hash.Add(Type);
 
-            return hashCodeCombiner;
+            return hash;
         }
 
         public override string ToString()
         {
-            return string.Format(CultureInfo.InvariantCulture, "{0} {1} - [{2}]", Start, Type, Content);
-        }
-
-        public void OffsetStart(SourceLocation documentStart)
-        {
-            Start = documentStart + Start;
-        }
-
-        public void ChangeStart(SourceLocation newStart)
-        {
-            Start = newStart;
+            return string.Format(CultureInfo.InvariantCulture, "{0} {1} - [{2}]", Offset, Type, Content);
         }
     }
 }

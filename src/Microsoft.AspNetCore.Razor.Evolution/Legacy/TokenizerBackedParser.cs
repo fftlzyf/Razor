@@ -18,7 +18,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         protected TokenizerBackedParser(LanguageCharacteristics<TTokenizer, TSymbol, TSymbolType> language, ParserContext context)
             : base(context)
         {
-            Span = new SpanBuilder();
+            Span = new SpanBuilder(CurrentLocation);
             Language = language;
             var languageTokenizer = Language.CreateTokenizer(Context.Source);
             _tokenizer = new TokenizerView<TTokenizer, TSymbol, TSymbolType>(languageTokenizer);
@@ -37,7 +37,20 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected SourceLocation CurrentLocation
         {
-            get { return (EndOfFile || CurrentSymbol == null) ? Context.Source.Location : CurrentSymbol.Start; }
+            get { return Context.Source.Location;  }
+        }
+
+        protected SourceLocation CurrentStart
+        {
+            get
+            {
+                if (_tokenizer.Current == null)
+                {
+                    return SourceLocation.Undefined;
+                }
+
+                return _tokenizer.Tokenizer.CurrentStart;
+            }
         }
 
         protected bool EndOfFile
@@ -163,7 +176,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         {
             var left = CurrentSymbol.Type;
             var right = Language.FlipBracket(left);
-            var start = CurrentLocation;
+            var start = CurrentStart;
             AcceptAndMoveNext();
             if (EndOfFile && ((mode & BalancingModes.NoErrorOnFailure) != BalancingModes.NoErrorOnFailure))
             {
@@ -180,7 +193,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected internal bool Balance(BalancingModes mode, TSymbolType left, TSymbolType right, SourceLocation start)
         {
-            var startPosition = CurrentLocation.AbsoluteIndex;
+            var startPosition = CurrentStart.AbsoluteIndex;
             var nesting = 1;
             if (!EndOfFile)
             {
@@ -196,7 +209,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
                         HandleEmbeddedTransition();
 
                         // Reset backtracking since we've already outputted some spans.
-                        startPosition = CurrentLocation.AbsoluteIndex;
+                        startPosition = CurrentStart.AbsoluteIndex;
                     }
                     if (At(left))
                     {
@@ -329,14 +342,9 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected internal void AddMarkerSymbolIfNecessary()
         {
-            AddMarkerSymbolIfNecessary(CurrentLocation);
-        }
-
-        protected internal void AddMarkerSymbolIfNecessary(SourceLocation location)
-        {
             if (Span.Symbols.Count == 0 && Context.Builder.LastAcceptedCharacters != AcceptedCharacters.Any)
             {
-                Accept(Language.CreateMarkerSymbol(location));
+                Accept(Language.CreateMarkerSymbol());
             }
         }
 
@@ -362,9 +370,18 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         {
             if (Span.Symbols.Count > 0)
             {
+                var nextStart = Span.End;
+
                 var builtSpan = Span.Build();
                 Context.Builder.Add(builtSpan);
                 Initialize(Span);
+
+                // Ensure spans are contiguous.
+                //
+                // Note: Using Span.End here to avoid CurrentLocation. CurrentLocation will
+                // vary depending on what tokens have been read. We often read a token and *then*
+                // make a decision about whether to include it in the current span.
+                Span.Start = nextStart;
             }
         }
 
@@ -464,7 +481,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
                     errorLength = Math.Max(CurrentSymbol.Content.Length, 1);
                 }
 
-                Context.ErrorSink.OnError(CurrentLocation, errorBase(error), errorLength);
+                Context.ErrorSink.OnError(CurrentStart, errorBase(error), errorLength);
             }
             return found;
         }
@@ -612,7 +629,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
                 using (Context.Builder.StartBlock(BlockType.Comment))
                 {
                     Context.Builder.CurrentBlock.ChunkGenerator = new RazorCommentChunkGenerator();
-                    var start = CurrentLocation;
+                    var start = CurrentStart;
 
                     Expected(KnownSymbolType.CommentStart);
                     Output(SpanKind.Transition, AcceptedCharacters.None);

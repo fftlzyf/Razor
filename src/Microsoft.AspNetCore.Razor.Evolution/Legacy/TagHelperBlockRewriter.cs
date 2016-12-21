@@ -149,7 +149,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             ErrorSink errorSink)
         {
             var afterEquals = false;
-            var builder = new SpanBuilder
+            var builder = new SpanBuilder(span.Start)
             {
                 ChunkGenerator = span.ChunkGenerator,
                 EditHandler = span.EditHandler,
@@ -281,7 +281,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
             // After all symbols have been added we need to set the builders start position so we do not indirectly
             // modify each symbol's Start location.
-            builder.Start = attributeValueStartLocation;
+            //builder.Start = attributeValueStartLocation;
 
             if (name == null)
             {
@@ -613,7 +613,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
                 .OfType<HtmlSymbol>()
                 .First(sym => sym.Type != HtmlSymbolType.WhiteSpace && sym.Type != HtmlSymbolType.NewLine);
 
-            return nodeStart + firstNonWhitespaceSymbol.Start;
+            return firstNonWhitespaceSymbol.Start;
         }
 
         private static Span CreateMarkupAttribute(SpanBuilder builder, bool isBoundNonStringAttribute)

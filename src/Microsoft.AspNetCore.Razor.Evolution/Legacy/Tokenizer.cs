@@ -65,9 +65,9 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             get { return Source.Location; }
         }
 
-        protected SourceLocation CurrentStart { get; private set; }
+        public SourceLocation CurrentStart { get; private set; }
 
-        protected abstract TSymbol CreateSymbol(SourceLocation start, string content, TSymbolType type, IReadOnlyList<RazorError> errors);
+        protected abstract TSymbol CreateSymbol(string content, TSymbolType type, IReadOnlyList<RazorError> errors);
 
         protected abstract StateResult Dispatch();
 
@@ -200,12 +200,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected TSymbol EndSymbol(TSymbolType type)
         {
-            return EndSymbol(CurrentStart, type);
-        }
-
-        protected TSymbol EndSymbol(SourceLocation start, TSymbolType type)
-        {
-            TSymbol sym = null;
+            TSymbol symbol = null;
             if (HaveContent)
             {
                 // Perf: Don't allocate a new errors array unless necessary.
@@ -215,10 +210,10 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
                     errors[i] = CurrentErrors[i];
                 }
 
-                sym = CreateSymbol(start, Buffer.ToString(), type, errors);
+                symbol = CreateSymbol(Buffer.ToString(), type, errors);
             }
             StartSymbol();
-            return sym;
+            return symbol;
         }
 
         protected bool TakeUntil(Func<char, bool> predicate)
