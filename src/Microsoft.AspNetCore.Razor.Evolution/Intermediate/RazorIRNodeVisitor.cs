@@ -74,6 +74,11 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
             VisitDefault(node);
         }
 
+        public virtual void VisitMethodDeclaration(MethodDeclarationIRNode node)
+        {
+            VisitDefault(node);
+        }
+
         public virtual void VisitDocument(DocumentIRNode node)
         {
             VisitDefault(node);

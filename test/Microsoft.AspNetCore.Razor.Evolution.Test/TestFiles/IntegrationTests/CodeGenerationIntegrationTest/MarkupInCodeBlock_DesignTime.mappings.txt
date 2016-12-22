@@ -1,0 +1,23 @@
+Source Location: (2:0,2 [46] TestFiles/IntegrationTests/CodeGenerationIntegrationTest/MarkupInCodeBlock.cshtml)
+|
+    for(int i = 1; i <= 10; i++) {
+        |
+Generated Location: (672:17,2 [46] )
+|
+    for(int i = 1; i <= 10; i++) {
+        |
+
+Source Location: (69:2,29 [12] TestFiles/IntegrationTests/CodeGenerationIntegrationTest/MarkupInCodeBlock.cshtml)
+|i.ToString()|
+Generated Location: (876:24,32 [12] )
+|i.ToString()|
+
+Source Location: (86:2,46 [9] TestFiles/IntegrationTests/CodeGenerationIntegrationTest/MarkupInCodeBlock.cshtml)
+|
+    }
+|
+Generated Location: (1061:29,46 [9] )
+|
+    }
+|
+
